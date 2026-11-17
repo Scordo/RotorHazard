@@ -63,3 +63,5 @@ The [PyLint](https://github.com/pylint-dev/pylint#pylint) code analyzer is used 
 See [here](https://www.pydev.org/manual_adv_pylint.html) for enabling PyLint code analysis on Eclipse with PyDev. With its default settings PyLint will flag more warnings than we want to deal with, so we disable some of them by navigating (in Eclipse) to "Preferences | PyDev | Editor | Code Analysis | PyLint" and entering the following into the box under "Arguments to pass to the pylint command":  `--disable=broad-except,bare-except,logging-not-lazy,logging-format-interpolation,global-statement,try-except-raise,unused-argument`
 
 The batch/script files in the 'tools' directory may be used to run the PyLint analysis from the command line: 'pylintchk' checks for errors only, 'pylintchkw' checks for errors and warnings.
+
+A Docker-based development environment (Compose, VS Code Dev Container, Windows/WSL2 helper scripts) is described in the [Docker Development Guide](Docker%20Development.md).

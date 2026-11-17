@@ -40,3 +40,6 @@ venv
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# Local overrides for the Windows developer helper
+docker/scripts/rh-dev.local.ps1

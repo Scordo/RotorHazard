@@ -1,0 +1,14 @@
+.git
+**/__pycache__
+**/*.pyc
+**/*.db*
+**/logs
+**/config.json
+**/datapath.ini
+**/venv
+**/.venv
+docs/superpowers
+tools/rhPortableFiles
+src/node
+docker/tests
+.github
