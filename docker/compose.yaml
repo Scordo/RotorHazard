@@ -1,0 +1,24 @@
+name: rotorhazard
+
+services:
+  rotorhazard:
+    image: ${RH_IMAGE:-ghcr.io/rotorhazard/rotorhazard}:${RH_VERSION:-latest}
+    container_name: rotorhazard
+    restart: unless-stopped
+    ports: ["5000:5000"]
+    volumes:
+      - rh-data:/data
+      - /dev:/dev                    # USB nodes incl. hotplug
+      - /run/udev:/run/udev:ro       # by-id names / udev info for pyserial
+    device_cgroup_rules:
+      - "c 188:* rmw"                # ttyUSB* (CH340, CP210x, FTDI)
+      - "c 166:* rmw"                # ttyACM* (CDC-ACM, e.g. STM32/Arduino native USB)
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - RH_EXTRA_GIDS=${RH_EXTRA_GIDS:-}
+      - RH_MOCK_NODES=${RH_MOCK_NODES:-}   # empty = off
+
+volumes:
+  rh-data:
