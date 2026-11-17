@@ -48,3 +48,14 @@ VOLUME /data
 EXPOSE 5000
 ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["python", "server.py"]
+
+FROM runtime AS runtime-java
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM runtime-java AS dev
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/* \
+    && PIP_USER=0 pip install pylint debugpy
