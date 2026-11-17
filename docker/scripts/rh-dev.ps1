@@ -88,12 +88,14 @@ function Import-RhLocalConfig {
     if (Test-Path $f) { . $f }
 }
 
-# wsl.exe emits UTF-16 for list output; read it as such and strip stray NULs
+# Capture wsl.exe output. wsl.exe's OWN output (e.g. "-l -q") is UTF-16; output of Linux commands run through
+# it is UTF-8. Pass -Utf16 only for wsl.exe's own listing output.
 function Invoke-Wsl {
-    param([string[]]$WslArgs)
+    param([string[]]$WslArgs, [switch]$Utf16)
     $old = [Console]::OutputEncoding
     try {
-        [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+        if ($Utf16) { [Console]::OutputEncoding = [System.Text.Encoding]::Unicode }
+        else { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) }
         $out = & wsl.exe @WslArgs 2>&1
     } finally {
         [Console]::OutputEncoding = $old
@@ -101,10 +103,34 @@ function Invoke-Wsl {
     return @($out | ForEach-Object { ([string]$_) -replace "`0", '' })
 }
 
+# Drop Docker Desktop's internal distros; they cannot host the dev environment
+function Select-RhDistros {
+    param([string[]]$Names)
+    return @($Names | ForEach-Object { "$_".Trim() } | Where-Object { $_ -and ($_ -notmatch '^docker-desktop') })
+}
+
+# True when a Linux path lives on a Windows drive mounted into WSL (/mnt/c/...): slow bind mounts
+function Test-RhDriveBackedPath {
+    param([string]$LinuxPath)
+    return ($LinuxPath -match '^/mnt/[A-Za-z](/|$)')
+}
+
+function Write-RhDriveWarning {
+    param([string]$Where, [bool]$Unconfigured)
+    Write-Host "WARNING: the repo is on a Windows drive ($Where)." -ForegroundColor Yellow
+    Write-Host "Docker bind mounts from a Windows drive are slow; keeping the repo inside the WSL filesystem is much faster." -ForegroundColor Yellow
+    if ($Unconfigured) {
+        Write-Host "No WSL repo location is configured. Open the repo from WSL (\\wsl.localhost\<distro>\...) or set RH_WSL_DISTRO and RH_WSL_REPO" -ForegroundColor Yellow
+        Write-Host "(env vars or docker\scripts\rh-dev.local.ps1), e.g. RH_WSL_REPO=/mnt/c/... See $script:RhDocs." -ForegroundColor Yellow
+    } else {
+        Write-Host "See $script:RhDocs." -ForegroundColor Yellow
+    }
+}
+
 function Get-RhDistros {
-    $out = Invoke-Wsl @('-l', '-q')
+    $out = Invoke-Wsl @('-l', '-q') -Utf16
     if ($LASTEXITCODE -ne 0) { return @() }
-    return @($out | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    return (Select-RhDistros $out)
 }
 
 function Confirm-Rh {
@@ -139,17 +165,17 @@ function Invoke-RhPassthrough {
     param([string[]]$Arguments)
     $target = Resolve-RhWslTarget $PSScriptRoot
     if (-not $target) {
-        Write-Host "WARNING: this checkout is on a Windows drive ($PSScriptRoot)." -ForegroundColor Yellow
-        Write-Host "Docker bind mounts from a Windows drive are slow, and no WSL repo location is configured." -ForegroundColor Yellow
-        Write-Host "Either open the repo from WSL (\\wsl.localhost\<distro>\...) or set RH_WSL_DISTRO and RH_WSL_REPO" -ForegroundColor Yellow
-        Write-Host "(env vars or docker\scripts\rh-dev.local.ps1), e.g. RH_WSL_REPO=/mnt/c/... See $script:RhDocs." -ForegroundColor Yellow
-        return 1
+        Write-RhDriveWarning $PSScriptRoot $true
+        $script:RhExit = 1
+        return
     }
+    if (Test-RhDriveBackedPath $target.LinuxPath) { Write-RhDriveWarning $target.LinuxPath $false }
     $inv = Get-RhWslInvocation $target $Arguments
-    if ($DryRun) { Write-Host (Format-RhCommand $inv); return 0 }
+    if ($DryRun) { Write-Host (Format-RhCommand $inv); $script:RhExit = 0; return }
     $wslArgs = @($inv | Select-Object -Skip 1)
-    & $inv[0] @wslArgs | Out-Host
-    return $LASTEXITCODE
+    # No pipe/redirect: wsl.exe inherits the console (TTY for "shell", prompts for "reset-data").
+    & $inv[0] @wslArgs
+    $script:RhExit = $LASTEXITCODE
 }
 
 function Invoke-RhSetup {
@@ -291,7 +317,21 @@ function Invoke-RhUsb {
             return 0
         }
         'detach' {
-            if (-not $busId) { Write-Host 'Usage: rh-dev usb detach <busid>'; return 2 }
+            if (-not $busId) {
+                if ($DryRun) {
+                    Write-Host 'usbipd list   (then offers the devices whose State is Attached)'
+                    return 0
+                }
+                $attached = @(ConvertFrom-UsbipdList @(& $usbipd list) | Where-Object { $_.State -eq 'Attached' })
+                if ($attached.Count -eq 0) { Write-Host 'No attached devices found.'; return 1 }
+                for ($i = 0; $i -lt $attached.Count; $i++) {
+                    Write-Host ("  [{0}] {1} {2} {3}" -f ($i + 1), $attached[$i].BusId, $attached[$i].VidPid, $attached[$i].Device)
+                }
+                $n = Read-Host 'Detach which device number'
+                $idx = 0
+                if (-not [int]::TryParse($n, [ref]$idx) -or $idx -lt 1 -or $idx -gt $attached.Count) { Write-Host 'Cancelled.'; return 1 }
+                $busId = $attached[$idx - 1].BusId
+            }
             $pidFile = Get-RhPidFile $busId
             if ($DryRun) {
                 Write-Host "Stop-Process -Id <PID stored in $pidFile>"
@@ -307,7 +347,7 @@ function Invoke-RhUsb {
             return $LASTEXITCODE
         }
         default {
-            Write-Host 'Usage: rh-dev usb list | attach [busid] | detach <busid>'
+            Write-Host 'Usage: rh-dev usb list | attach [busid] | detach [busid]'
             return 2
         }
     }
@@ -322,19 +362,19 @@ function Invoke-RhMain {
         $cmd = $Arguments[0]
         $rest = @($Arguments | Select-Object -Skip 1)
     }
+    $script:RhExit = 0
     switch ($cmd) {
-        'setup' { return (Invoke-RhSetup) }
-        'usb'   { return (Invoke-RhUsb $rest) }
+        'setup' { $script:RhExit = [int](Invoke-RhSetup | Select-Object -Last 1) }
+        'usb'   { $script:RhExit = [int](Invoke-RhUsb $rest | Select-Object -Last 1) }
         'open'  {
-            if ($DryRun) { Write-Host "Start-Process $script:RhUrl"; return 0 }
-            Start-Process $script:RhUrl
-            return 0
+            if ($DryRun) { Write-Host "Start-Process $script:RhUrl" } else { Start-Process $script:RhUrl }
         }
-        default { return (Invoke-RhPassthrough $Arguments) }
+        # Passthrough must not be captured or piped (interactive commands need the console); it sets $script:RhExit.
+        default { Invoke-RhPassthrough $Arguments }
     }
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
-    $code = Invoke-RhMain $CliArgs
-    exit ([int]($code | Select-Object -Last 1))
+    Invoke-RhMain $CliArgs
+    exit $script:RhExit
 }

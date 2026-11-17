@@ -80,3 +80,21 @@ Describe 'Get-RhWslInvocation' {
         ($r -join '|') | Should Be 'wsl.exe|-d|Ubuntu-26.04|--cd|/home/scordo/RotorHazard|--|docker/scripts/rh-dev.sh|up|--mock|2'
     }
 }
+
+Describe 'Select-RhDistros' {
+    It 'drops docker-desktop distros and blanks' {
+        $r = @(Select-RhDistros @('docker-desktop', 'Ubuntu-26.04', '', 'docker-desktop-data', ' Debian '))
+        ($r -join '|') | Should Be 'Ubuntu-26.04|Debian'
+    }
+}
+
+Describe 'Test-RhDriveBackedPath' {
+    It 'detects /mnt/<drive> paths' {
+        Test-RhDriveBackedPath '/mnt/c/P/Remote/github/RotorHazard' | Should Be $true
+        Test-RhDriveBackedPath '/mnt/d' | Should Be $true
+    }
+    It 'accepts WSL-native paths' {
+        Test-RhDriveBackedPath '/home/scordo/RotorHazard' | Should Be $false
+        Test-RhDriveBackedPath '/mnt/wsl/x' | Should Be $false
+    }
+}
