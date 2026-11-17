@@ -1,0 +1,44 @@
+{
+  "name": "RotorHazard",
+  "dockerComposeFile": ["../docker/compose.dev.yaml"],
+  "service": "rotorhazard",
+  "workspaceFolder": "/app",
+  "overrideCommand": true,
+  "remoteUser": "rotorhazard",
+  "forwardPorts": [5000],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-python.pylint"
+      ],
+      "settings": {
+        "launch": {
+          "version": "0.2.0",
+          "configurations": [
+            {
+              "name": "RotorHazard server",
+              "type": "debugpy",
+              "request": "launch",
+              "program": "/app/src/server/server.py",
+              "cwd": "/app/src/server",
+              "console": "integratedTerminal",
+              "env": { "RH_DATA_DIR": "/data" }
+            },
+            {
+              "name": "RotorHazard server (mock nodes)",
+              "type": "debugpy",
+              "request": "launch",
+              "program": "/app/src/server/server.py",
+              "cwd": "/app/src/server",
+              "args": ["--mock-nodes", "4"],
+              "console": "integratedTerminal",
+              "env": { "RH_DATA_DIR": "/data" }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
