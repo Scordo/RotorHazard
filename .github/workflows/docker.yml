@@ -1,0 +1,135 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Push sha-<short> images to GHCR"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  docker:
+    name: ${{ matrix.variant.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - target: runtime
+            suffix: ""
+          - target: runtime-java
+            suffix: "-java"
+    env:
+      # Local tag used for the amd64 smoke-test build; also passed to the test scripts.
+      TEST_IMAGE: rotorhazard-ci:${{ matrix.variant.target }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Determine image name and publish decision
+        id: prep
+        env:
+          OWNER: ${{ github.repository_owner }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          PUBLISH_DEV: ${{ vars.PUBLISH_DEV }}
+          DISPATCH_PUBLISH: ${{ inputs.publish }}
+        run: |
+          echo "image=ghcr.io/${OWNER,,}/rotorhazard" >> "$GITHUB_OUTPUT"
+          publish=false
+          if [[ "$EVENT" == push && "$REF" == refs/tags/v* ]]; then
+            publish=true
+          elif [[ "$EVENT" == push && "$REF" == refs/heads/main && "$PUBLISH_DEV" != false ]]; then
+            publish=true
+          elif [[ "$EVENT" == workflow_dispatch && "$DISPATCH_PUBLISH" == true ]]; then
+            publish=true
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ steps.prep.outputs.image }}
+          flavor: |
+            latest=false
+            suffix=${{ matrix.variant.suffix }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+            type=raw,value=dev,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PUBLISH_DEV != 'false' }}
+            type=sha,prefix=sha-,enable=${{ (github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PUBLISH_DEV != 'false') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+
+      - name: Build (amd64, local) for smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ matrix.variant.target }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ env.TEST_IMAGE }}
+          build-args: |
+            RH_VERSION=${{ steps.meta.outputs.version }}
+            RH_SOURCE=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.variant.target }}
+          cache-to: type=gha,scope=${{ matrix.variant.target }},mode=max
+
+      - name: Smoke test
+        if: matrix.variant.target == 'runtime'
+        run: bash docker/tests/smoke.sh "$TEST_IMAGE"
+
+      - name: Smoke test (Java variant)
+        if: matrix.variant.target == 'runtime-java'
+        run: bash docker/tests/smoke.sh "$TEST_IMAGE" --java
+
+      - name: Entrypoint tests
+        if: matrix.variant.target == 'runtime'
+        run: bash docker/tests/entrypoint.sh "$TEST_IMAGE"
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request' && steps.prep.outputs.publish == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (multi-arch)
+        if: steps.prep.outputs.publish == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ matrix.variant.target }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            RH_VERSION=${{ steps.meta.outputs.version }}
+            RH_SOURCE=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.variant.target }}
+          cache-to: type=gha,scope=${{ matrix.variant.target }},mode=max
