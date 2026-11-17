@@ -22,7 +22,7 @@ param(
 $script:RhDefaultDistro = 'Ubuntu-26.04'
 $script:RhTimerVids = @('1a86', '10c4', '0403', '0483', '2341')
 $script:RhUrl = 'http://localhost:5000'
-$script:RhDocs = 'docs/docker-dev.md'
+$script:RhDocs = 'doc/Docker Development.md'
 
 function Resolve-RhWslTarget {
     param([string]$Path)
@@ -148,7 +148,7 @@ function Invoke-RhPassthrough {
     $inv = Get-RhWslInvocation $target $Arguments
     if ($DryRun) { Write-Host (Format-RhCommand $inv); return 0 }
     $wslArgs = @($inv | Select-Object -Skip 1)
-    & $inv[0] @wslArgs
+    & $inv[0] @wslArgs | Out-Host
     return $LASTEXITCODE
 }
 
@@ -170,7 +170,7 @@ function Invoke-RhSetup {
         Write-Host "  command: wsl --install -d $script:RhDefaultDistro"
         if (Confirm-Rh "Install WSL distro $($script:RhDefaultDistro)?") {
             if (-not $DryRun) {
-                & wsl.exe --install -d $script:RhDefaultDistro
+                & wsl.exe --install -d $script:RhDefaultDistro | Out-Host
                 Write-Host '  Finish the distro first-run user setup, then run setup again.'
                 return 0
             }
@@ -190,8 +190,8 @@ function Invoke-RhSetup {
         Write-Host "  command: wsl -d $distro -u root -- bash -c `"$cmd`" ; wsl --shutdown"
         if (Confirm-Rh 'Enable systemd (restarts WSL)?') {
             if (-not $DryRun) {
-                & wsl.exe -d $distro -u root -- bash -c $cmd
-                & wsl.exe --shutdown
+                & wsl.exe -d $distro -u root -- bash -c $cmd | Out-Host
+                & wsl.exe --shutdown | Out-Host
             }
         }
     }
@@ -212,8 +212,8 @@ function Invoke-RhSetup {
         Write-Host "  command: wsl -d $distro -u root -- usermod -aG docker $user"
         if (Confirm-Rh 'Install Docker Engine and add your user to the docker group?') {
             if (-not $DryRun) {
-                & wsl.exe -d $distro -u root -- bash -c $aptCmd
-                & wsl.exe -d $distro -u root -- usermod -aG docker $user
+                & wsl.exe -d $distro -u root -- bash -c $aptCmd | Out-Host
+                & wsl.exe -d $distro -u root -- usermod -aG docker $user | Out-Host
                 Write-Host '  Run "wsl --shutdown" once so the new group membership applies.'
             }
         }
@@ -225,7 +225,7 @@ function Invoke-RhSetup {
     else {
         Write-Host '  command: winget install --exact dorssel.usbipd-win'
         if (Confirm-Rh 'Install usbipd-win with winget (needed for USB timer nodes)?') {
-            if (-not $DryRun) { & winget.exe install --exact dorssel.usbipd-win }
+            if (-not $DryRun) { & winget.exe install --exact dorssel.usbipd-win | Out-Host }
         }
     }
     Write-Host 'Setup finished.'
@@ -303,7 +303,7 @@ function Invoke-RhUsb {
                 Stop-Process -Id $procId -ErrorAction SilentlyContinue
                 Remove-Item $pidFile -ErrorAction SilentlyContinue
             }
-            & $usbipd detach --busid $busId
+            & $usbipd detach --busid $busId | Out-Host
             return $LASTEXITCODE
         }
         default {
