@@ -22,6 +22,12 @@ param(
 $script:RhDefaultDistro = 'Ubuntu-26.04'
 $script:RhTimerVids = @('1a86', '10c4', '0403', '0483', '2341')
 $script:RhUrl = 'http://localhost:5000'
+$script:RhRepoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+# cmd's pushd maps a UNC folder to a drive letter (X:\...); translate it back to the UNC path
+if ($script:RhRepoRoot -match '^([A-Za-z]):(.*)$') {
+    $drv = Get-PSDrive -Name $Matches[1] -ErrorAction SilentlyContinue
+    if ($drv -and $drv.DisplayRoot -and $drv.DisplayRoot -like '\\*') { $script:RhRepoRoot = $drv.DisplayRoot + $Matches[2] }
+}
 $script:RhDocs = 'doc/Docker Development.md'
 
 function Resolve-RhWslTarget {
@@ -154,7 +160,7 @@ function Get-RhPidFile { param([string]$BusId) Join-Path $env:TEMP ("rh-dev-usb-
 
 function Get-RhSetupDistro {
     $t = Resolve-RhWslTarget (Get-Location).ProviderPath
-    if (-not $t) { $t = Resolve-RhWslTarget $PSScriptRoot }
+    if (-not $t) { $t = Resolve-RhWslTarget $script:RhRepoRoot }
     if ($t) { return $t.Distro }
     return $script:RhDefaultDistro
 }
@@ -163,9 +169,9 @@ function Get-RhSetupDistro {
 
 function Invoke-RhPassthrough {
     param([string[]]$Arguments)
-    $target = Resolve-RhWslTarget $PSScriptRoot
+    $target = Resolve-RhWslTarget $script:RhRepoRoot
     if (-not $target) {
-        Write-RhDriveWarning $PSScriptRoot $true
+        Write-RhDriveWarning $script:RhRepoRoot $true
         $script:RhExit = 1
         return
     }

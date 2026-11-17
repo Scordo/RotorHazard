@@ -28,7 +28,7 @@ On Windows, Docker runs inside WSL2 (Windows Subsystem for Linux) using Docker E
 
 ### The shortcut: `rh-dev setup`
 
-If the repository is already on your computer, the helper script can check everything and fix what is missing, asking before every step. Open PowerShell or cmd in the repository folder and run:
+If the repository is already on your computer, the helper script can check everything and fix what is missing, asking before every step. Open PowerShell in the repository folder (see [step 4](#4-use-rh-dev-from-windows) for how to reach a repository inside WSL) and run:
 
 ```
 docker\scripts\rh-dev.cmd setup
@@ -97,13 +97,15 @@ Reason: files on a Windows drive (`/mnt/c`) are accessed through a slow bridge, 
 
 ### 4. Use `rh-dev` from Windows
 
-From Windows the same folder is reachable as `\\wsl.localhost\Ubuntu-26.04\home\<user>\RotorHazard` (replace `<user>` with your Linux user name; type it into the Explorer address bar). Open a PowerShell or cmd window in **that folder** (for example, in Explorer address bar type `powershell`, or in VS Code use "Open Folder" with that path) and run:
+From Windows the same folder is reachable as `\\wsl.localhost\Ubuntu-26.04\home\<user>\RotorHazard` (replace `<user>` with your Linux user name; type it into the Explorer address bar). Open **PowerShell** in that folder (for example, type `powershell` into the Explorer address bar while that folder is shown) and run:
 
 ```
 docker\scripts\rh-dev.cmd status
 ```
 
-`rh-dev.cmd` recognizes from the folder path which WSL distribution and Linux path to use; nothing needs to be configured. You should see something like:
+cmd.exe itself cannot use such a folder as its working directory and prints three lines starting with `CMD.EXE was started with the above path as the current directory` (in your Windows language); they are harmless. If you prefer the classic command prompt, first run `pushd \\wsl.localhost\Ubuntu-26.04\home\<user>\RotorHazard`, which maps the folder to a temporary drive letter, then run the same command.
+
+`rh-dev.cmd` recognizes from its own location (the repository folder it is part of) which WSL distribution and Linux path to use; nothing needs to be configured. You should see something like:
 
 ```
 Container: not running
@@ -112,7 +114,7 @@ Serial devices: unknown (container not running)
 ```
 
 > [!TIP]
-> To type just `rh-dev` instead of `docker\scriptsh-dev.cmd`, add the folder `docker\scripts` of the repository to your `PATH`. The rest of this guide writes `rh-dev` for brevity.
+> To type just `rh-dev` instead of `docker\scripts\rh-dev.cmd`, add the folder `docker\scripts` of the repository to your `PATH`. The rest of this guide writes `rh-dev` for brevity.
 
 **Repository on a Windows drive?** If you must keep it there (for example `C:\...`), `rh-dev` prints a warning about slow bind mounts. To use the script anyway, tell it the distribution and the Linux path of the repository, either with environment variables:
 
