@@ -174,6 +174,27 @@ check_no_recursive_chown() {
     if [ "$owner" = "4321" ]; then pass "no recursive chown"; else fail "no recursive chown (owner=$owner)"; fi
 }
 
+# check_rejects LABEL EXPECTED_TEXT ENV_ASSIGNMENT: container must exit non-zero with the message
+check_rejects() {
+    local label="$1" text="$2" out rc=0
+    out="$(docker run --rm -e "$3" "$IMAGE" true 2>&1)" || rc=$?
+    if [ "$rc" != 0 ] && grep -q "$text" <<<"$out"; then pass "reject $label"; else fail "reject $label (rc=$rc: $out)"; fi
+}
+
+check_invalid_ids() {
+    check_rejects "PUID=0" "must not be 0" PUID=0
+    check_rejects "PGID=0" "must not be 0" PGID=0
+    check_rejects "RH_EXTRA_GIDS=0" "must not contain 0" RH_EXTRA_GIDS=0
+    check_rejects "RH_EXTRA_GIDS=20,0" "must not contain 0" RH_EXTRA_GIDS=20,0
+    check_rejects "RH_EXTRA_GIDS=abc" "digits and commas" RH_EXTRA_GIDS=abc
+}
+
+check_mock_only_server() {
+    local out
+    out="$(docker run --rm -e RH_MOCK_NODES=2 "$IMAGE" python -c 'import sys; print(sys.argv)' 2>&1)" || true
+    if [ "$out" = "['-c']" ]; then pass "mock nodes only appended for server.py"; else fail "mock nodes only appended for server.py (got: $out)"; fi
+}
+
 check_puid
 [ "$FAILED" = 0 ] && check_puid_restart
 check_bind_created
@@ -182,6 +203,8 @@ check_tty_root
 check_user_flag
 check_plugin_deps
 check_no_recursive_chown
+check_invalid_ids
+check_mock_only_server
 
 if [ "$FAILED" = 0 ]; then echo "ALL CHECKS PASSED"; else echo "ENTRYPOINT TEST FAILED"; fi
 exit "$FAILED"

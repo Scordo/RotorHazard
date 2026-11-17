@@ -1,9 +1,9 @@
 {
   "name": "RotorHazard",
-  "dockerComposeFile": ["../docker/compose.dev.yaml"],
+  "dockerComposeFile": ["../docker/compose.dev.yaml", "compose.override.yaml"],
   "service": "rotorhazard",
   "workspaceFolder": "/app",
-  "overrideCommand": true,
+  "overrideCommand": false,
   "remoteUser": "rotorhazard",
   "forwardPorts": [5000],
   "customizations": {

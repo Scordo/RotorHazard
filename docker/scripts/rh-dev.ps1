@@ -345,8 +345,13 @@ function Invoke-RhUsb {
                 return 0
             }
             if (Test-Path $pidFile) {
-                $procId = [int](Get-Content $pidFile | Select-Object -First 1)
-                Stop-Process -Id $procId -ErrorAction SilentlyContinue
+                $procId = 0
+                [void][int]::TryParse([string](Get-Content $pidFile | Select-Object -First 1), [ref]$procId)
+                # The PID may be stale (e.g. after a reboot): only stop it if it is still usbipd.
+                $proc = if ($procId -gt 0) { Get-Process -Id $procId -ErrorAction SilentlyContinue } else { $null }
+                if ($proc -and $proc.ProcessName -eq 'usbipd') {
+                    Stop-Process -Id $procId -ErrorAction SilentlyContinue
+                }
                 Remove-Item $pidFile -ErrorAction SilentlyContinue
             }
             & $usbipd detach --busid $busId | Out-Host

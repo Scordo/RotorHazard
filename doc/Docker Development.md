@@ -20,7 +20,7 @@ There are two ways to work, both based on the same `dev` image (the production i
 * **Compose workflow** (`docker/compose.dev.yaml`): you edit the code with any editor on your computer; the container runs the server with your source folder mounted at `/app`. Restart the container to see code changes. The helper script `rh-dev` wraps all commands, so you never have to remember the long `docker compose -f ...` lines.
 * **VS Code Dev Container** (`.devcontainer/devcontainer.json`): VS Code opens the same container, so the editor, the debugger and the terminal run inside it.
 
-In the container your code is in `/app` and the server's data (database, configuration, logs) is kept in a separate volume named `rotorhazard-dev_rh-dev-data`, so it does not mix with your source folder. The server listens on port 5000; port 5678 is reserved for the debugger. The container is named `rotorhazard-dev`.
+In the container your code is in `/app` and the server's data (database, configuration, logs) is kept in a separate volume named `rotorhazard-dev_rh-dev-data`, so it does not mix with your source folder. The server listens on port 5000; port 5678 (published on your computer's localhost only) is reserved for the debugger. The container is named `rotorhazard-dev`.
 
 ## Windows and WSL2 Setup
 
@@ -114,7 +114,7 @@ Serial devices: unknown (container not running)
 ```
 
 > [!TIP]
-> To type just `rh-dev` instead of `docker\scripts\rh-dev.cmd`, add the folder `docker\scripts` of the repository to your `PATH`. The rest of this guide writes `rh-dev` for brevity.
+> To type just `rh-dev` instead of `docker\scripts\rh-dev.cmd`, add the folder `docker\scripts` of the repository to your `PATH`. In PowerShell type `rh-dev.cmd` (with the extension): plain `rh-dev` would pick `rh-dev.ps1`, which PowerShell's default execution policy blocks. The rest of this guide writes `rh-dev` for brevity; on Windows read it as `rh-dev.cmd` (or `docker\scripts\rh-dev.cmd`).
 
 **Repository on a Windows drive?** If you must keep it there (for example `C:\...`), `rh-dev` prints a warning about slow bind mounts. To use the script anyway, tell it the distribution and the Linux path of the repository, either with environment variables:
 

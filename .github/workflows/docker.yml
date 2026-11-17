@@ -113,6 +113,10 @@ jobs:
         if: matrix.variant.target == 'runtime-java'
         run: bash docker/tests/smoke.sh "$TEST_IMAGE" --java
 
+      - name: rh-dev script tests
+        if: matrix.variant.target == 'runtime'
+        run: bash docker/tests/test_rh-dev.sh
+
       - name: Entrypoint tests
         if: matrix.variant.target == 'runtime'
         run: bash docker/tests/entrypoint.sh "$TEST_IMAGE"

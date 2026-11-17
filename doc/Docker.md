@@ -30,7 +30,9 @@ A Docker image is a ready-made package of the RotorHazard server together with P
 |---|---|---|
 | Standard | `latest`, `X.Y.Z`, `X.Y` | RotorHazard server |
 | With Java | `latest-java`, `X.Y.Z-java`, `X.Y-java` | Same, plus Java, which enables the IMD score (IMDTabler) feature |
-| Development | `dev`, `dev-java` | Latest unreleased code from the `main` branch; may be unstable. Pre-release versions (for example `4.6.0-beta.1`) only get their exact tag, never `latest`. |
+| Development | `dev`, `dev-java` | Latest unreleased code from the `main` branch; may be unstable. |
+
+Pre-release versions (for example `4.6.0-beta.1`) only get their exact tag, never `latest`.
 
 Choose "With Java" only if you want IMD scores (see [Java Support](Software%20Setup.md#java-support)); otherwise use the standard variant.
 
@@ -210,7 +212,7 @@ Compose recreates the container if something changed (your data is kept, see [Yo
 | `RH_EXTRA_GIDS` | empty | Extra group IDs (comma-separated) to give the server process, for serial devices owned by an unusual group. Rarely needed. | `RH_EXTRA_GIDS=986,987` |
 | `RH_MOCK_NODES` | empty (off) | Start with this many simulated nodes instead of real hardware. | `RH_MOCK_NODES=4` |
 
-The server never runs as `root` inside the container, regardless of these settings.
+`PUID`, `PGID` and `RH_EXTRA_GIDS` must be numbers (`RH_EXTRA_GIDS`: comma-separated) and must not be `0`; the container refuses to start otherwise. The server never runs as `root` inside the container, regardless of these settings.
 
 **Changing the port**
 
@@ -388,7 +390,7 @@ Known limitations:
 
   ```
   docker compose stop
-  docker compose run --rm --no-deps -u rotorhazard rotorhazard sh -c 'rm -rf /data/python/*'
+  docker compose run --rm --no-deps --entrypoint sh rotorhazard -c 'rm -rf /data/python/*'
   docker compose start
   ```
 
@@ -447,7 +449,10 @@ To also **delete all RotorHazard data** (event database, configuration, plugins;
 docker compose down -v
 ```
 
-Remove the image and the downloaded files:
+Remove the image and the downloaded files.
+
+> [!WARNING]
+> If you store the data in a normal folder (`./rh-data:/data`, see [the bind-mount option](#option-store-the-data-in-a-normal-folder)), that folder lives inside `~/rotorhazard` and the command below deletes your event data too. Back it up or move `rh-data` out of the folder first.
 
 ```
 docker rmi ghcr.io/rotorhazard/rotorhazard:latest

@@ -10,7 +10,7 @@ services:
     container_name: rotorhazard-dev
     ports:
       - "5000:5000"
-      - "5678:5678"                  # debugpy
+      - "127.0.0.1:5678:5678"       # debugpy (localhost only)
     volumes:
       - ..:/app                      # source code
       - rh-dev-data:/data

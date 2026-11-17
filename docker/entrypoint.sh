@@ -4,9 +4,11 @@ set -eu
 
 DATA_DIR="${RH_DATA_DIR:-/data}"
 
-# RH_MOCK_NODES=N -> append --mock-nodes N to the command line
+# RH_MOCK_NODES=N -> append --mock-nodes N, but only when the command starts the server
 if [ -n "${RH_MOCK_NODES:-}" ]; then
-    set -- "$@" --mock-nodes "$RH_MOCK_NODES"
+    case " $* " in
+        *server.py*) set -- "$@" --mock-nodes "$RH_MOCK_NODES" ;;
+    esac
 fi
 
 # Already started as non-root (e.g. 'user:' in Compose): nothing to prepare or drop.
@@ -20,6 +22,20 @@ want_gid="${PGID:-1000}"
 case "$want_uid$want_gid" in
     *[!0-9]*|"") echo "entrypoint: PUID and PGID must be numeric" >&2; exit 1 ;;
 esac
+is_zero() { case "$1" in *[!0]*) return 1 ;; *) return 0 ;; esac; }
+if is_zero "$want_uid" || is_zero "$want_gid"; then
+    echo "entrypoint: PUID and PGID must not be 0 (the server never runs as root); use RH_EXTRA_GIDS to grant access to devices" >&2
+    exit 1
+fi
+case "${RH_EXTRA_GIDS:-}" in
+    *[!0-9,]*) echo "entrypoint: RH_EXTRA_GIDS must contain only digits and commas" >&2; exit 1 ;;
+esac
+for g in $(printf '%s' "${RH_EXTRA_GIDS:-}" | tr ',' ' '); do
+    if is_zero "$g"; then
+        echo "entrypoint: RH_EXTRA_GIDS must not contain 0 (the root group)" >&2
+        exit 1
+    fi
+done
 
 # Align the 'rotorhazard' user/group with PUID/PGID (only when they differ, so restarts are no-ops).
 if [ "$(id -g rotorhazard)" != "$want_gid" ]; then

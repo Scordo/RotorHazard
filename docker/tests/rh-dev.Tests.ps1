@@ -15,9 +15,9 @@ Describe 'Resolve-RhWslTarget' {
     }
 
     It 'parses a wsl.localhost UNC path' {
-        $t = Resolve-RhWslTarget '\\wsl.localhost\Ubuntu-26.04\home\scordo\RotorHazard'
+        $t = Resolve-RhWslTarget '\\wsl.localhost\Ubuntu-26.04\home\user\RotorHazard'
         $t.Distro | Should Be 'Ubuntu-26.04'
-        $t.LinuxPath | Should Be '/home/scordo/RotorHazard'
+        $t.LinuxPath | Should Be '/home/user/RotorHazard'
     }
     It 'parses a wsl$ UNC path with spaces' {
         $t = Resolve-RhWslTarget '\\wsl$\Ubuntu\home\a b\RH'
@@ -34,10 +34,10 @@ Describe 'Resolve-RhWslTarget' {
     }
     It 'falls back to the env vars for a drive path' {
         $env:RH_WSL_DISTRO = 'Ubuntu-26.04'
-        $env:RH_WSL_REPO = '/home/scordo/RH'
+        $env:RH_WSL_REPO = '/home/user/RH'
         $t = Resolve-RhWslTarget 'C:\P\RotorHazard'
         $t.Distro | Should Be 'Ubuntu-26.04'
-        $t.LinuxPath | Should Be '/home/scordo/RH'
+        $t.LinuxPath | Should Be '/home/user/RH'
     }
 }
 
@@ -75,9 +75,9 @@ Describe 'ConvertFrom-UsbipdList' {
 
 Describe 'Get-RhWslInvocation' {
     It 'builds the wsl.exe argument list' {
-        $t = [pscustomobject]@{ Distro = 'Ubuntu-26.04'; LinuxPath = '/home/scordo/RotorHazard' }
+        $t = [pscustomobject]@{ Distro = 'Ubuntu-26.04'; LinuxPath = '/home/user/RotorHazard' }
         $r = @(Get-RhWslInvocation $t @('up', '--mock', '2'))
-        ($r -join '|') | Should Be 'wsl.exe|-d|Ubuntu-26.04|--cd|/home/scordo/RotorHazard|--|docker/scripts/rh-dev.sh|up|--mock|2'
+        ($r -join '|') | Should Be 'wsl.exe|-d|Ubuntu-26.04|--cd|/home/user/RotorHazard|--|docker/scripts/rh-dev.sh|up|--mock|2'
     }
 }
 
@@ -90,11 +90,11 @@ Describe 'Select-RhDistros' {
 
 Describe 'Test-RhDriveBackedPath' {
     It 'detects /mnt/<drive> paths' {
-        Test-RhDriveBackedPath '/mnt/c/P/Remote/github/RotorHazard' | Should Be $true
+        Test-RhDriveBackedPath '/mnt/c/src/RotorHazard' | Should Be $true
         Test-RhDriveBackedPath '/mnt/d' | Should Be $true
     }
     It 'accepts WSL-native paths' {
-        Test-RhDriveBackedPath '/home/scordo/RotorHazard' | Should Be $false
+        Test-RhDriveBackedPath '/home/user/RotorHazard' | Should Be $false
         Test-RhDriveBackedPath '/mnt/wsl/x' | Should Be $false
     }
 }
