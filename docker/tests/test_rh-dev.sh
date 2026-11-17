@@ -36,7 +36,11 @@ expect_contains "down: command" "$out" "$COMPOSE down"
 expect_lacks "down: keeps volume" "$out" " -v"
 
 out="$("$SCRIPT" test 2>&1)" || true
-expect_contains "test: command" "$out" "exec -u rotorhazard rotorhazard sh -c 'cd /app/src/tests && python -m unittest discover'"
+expect_contains "test: command" "$out" "exec -T -u rotorhazard rotorhazard sh -c 'cd /app/src/tests && python -m unittest discover'"
+
+out="$("$SCRIPT" shell 2>&1)" || true
+expect_contains "shell: command" "$out" "exec -u rotorhazard rotorhazard bash"
+expect_lacks "shell: keeps TTY" "$out" " -T"
 
 out="$("$SCRIPT" lint 2>&1)" || true
 expect_contains "lint: command" "$out" "pylint --errors-only /app/src/interface/*.py /app/src/server/*.py /app/src/server/util/*.py"

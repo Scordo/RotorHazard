@@ -57,7 +57,9 @@ run() {
 }
 
 compose() { run docker compose -f "$COMPOSE_FILE" "$@"; }
-cexec() { compose exec -u "$RUN_USER" "$SERVICE" "$@"; }
+# cexec: non-interactive exec (no TTY, safe for CI/pipes); cexec_tty: interactive
+cexec() { compose exec -T -u "$RUN_USER" "$SERVICE" "$@"; }
+cexec_tty() { compose exec -u "$RUN_USER" "$SERVICE" "$@"; }
 
 need_docker() {
     [ "$DRY_RUN" = 1 ] && return 0
@@ -92,7 +94,7 @@ cmd_logs() {
     esac
 }
 
-cmd_shell() { cexec bash; }
+cmd_shell() { cexec_tty bash; }
 cmd_test() { cexec sh -c 'cd /app/src/tests && python -m unittest discover'; }
 
 cmd_lint() {
@@ -131,7 +133,7 @@ cmd_status() {
     if [ "$state" = running ]; then
         echo "Serial devices:"
         docker compose -f "$COMPOSE_FILE" exec -T "$SERVICE" sh -c \
-            'ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo none' | sed 's/^/  /'
+            'found=0; for d in /dev/ttyUSB* /dev/ttyACM*; do [ -e "$d" ] && { echo "$d"; found=1; }; done; [ "$found" = 1 ] || echo none' | sed 's/^/  /'
     else
         echo "Serial devices: unknown (container not running)"
     fi
