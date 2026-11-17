@@ -92,12 +92,18 @@ check_data_layout() {
     fi
 }
 
+# Capture logs before grepping: with pipefail, `docker logs | grep -q` can fail
+# (SIGPIPE on docker logs after grep exits early on a match).
 check_mock_nodes() {
-    if docker logs "$CURRENT" 2>&1 | grep -q 'Using mock hardware interface'; then pass mock-nodes; else fail mock-nodes; fi
+    local logs
+    logs="$(docker logs "$CURRENT" 2>&1)"
+    if grep -q 'Using mock hardware interface' <<<"$logs"; then pass mock-nodes; else fail mock-nodes; fi
 }
 
 check_no_mismatch() {
-    if docker logs "$CURRENT" 2>&1 | grep -qF 'Try "pip install'; then fail no-mismatch; else pass no-mismatch; fi
+    local logs
+    logs="$(docker logs "$CURRENT" 2>&1)"
+    if grep -qF 'Try "pip install' <<<"$logs"; then fail no-mismatch; else pass no-mismatch; fi
 }
 
 check_restart() {

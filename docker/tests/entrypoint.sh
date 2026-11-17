@@ -94,7 +94,9 @@ check_puid() {
 check_puid_restart() {
     docker restart -t 20 "$CURRENT" >/dev/null
     if ! wait_http; then fail "puid restart idempotent (http)"; return; fi
-    if [ "$(proc_uid)" = "1234" ] && ! docker logs "$CURRENT" 2>&1 | grep -qi 'usermod\|groupmod'; then
+    local logs
+    logs="$(docker logs "$CURRENT" 2>&1)"  # capture first: pipefail + grep -q can SIGPIPE docker logs
+    if [ "$(proc_uid)" = "1234" ] && ! grep -qi 'usermod\|groupmod' <<<"$logs"; then
         pass "puid restart idempotent"
     else
         fail "puid restart idempotent"
