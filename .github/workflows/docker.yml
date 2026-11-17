@@ -46,10 +46,18 @@ jobs:
           OWNER: ${{ github.repository_owner }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
           PUBLISH_DEV: ${{ vars.PUBLISH_DEV }}
           DISPATCH_PUBLISH: ${{ inputs.publish }}
         run: |
           echo "image=ghcr.io/${OWNER,,}/rotorhazard" >> "$GITHUB_OUTPUT"
+          if [[ "$REF" == refs/tags/v* ]]; then
+            version="${REF_NAME#v}"
+          else
+            version="dev-${SHA:0:7}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           publish=false
           if [[ "$EVENT" == push && "$REF" == refs/tags/v* ]]; then
             publish=true
@@ -92,7 +100,7 @@ jobs:
           push: false
           tags: ${{ env.TEST_IMAGE }}
           build-args: |
-            RH_VERSION=${{ steps.meta.outputs.version }}
+            RH_VERSION=${{ steps.prep.outputs.version }}
             RH_SOURCE=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha,scope=${{ matrix.variant.target }}
           cache-to: type=gha,scope=${{ matrix.variant.target }},mode=max
@@ -129,7 +137,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            RH_VERSION=${{ steps.meta.outputs.version }}
+            RH_VERSION=${{ steps.prep.outputs.version }}
             RH_SOURCE=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha,scope=${{ matrix.variant.target }}
           cache-to: type=gha,scope=${{ matrix.variant.target }},mode=max
