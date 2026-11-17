@@ -11,6 +11,7 @@
 * [Software Setup Instructions](Software%20Setup.md)
 * [Raspberry Pi Reference](Raspberry%20Pi%20Reference.md)
 * [Windows Run Script](Windows%20Run%20Script.md)
+* [Running with Docker](Docker.md)
 
 ## Optional Features
 * [Plugins](Plugins.md)
@@ -26,4 +27,5 @@
 
 * [Build Resources (PCB, etc) &#10132;&#xFE0E;](https://github.com/RotorHazard/RotorHazard/tree/main/resources/README.md)
 * [Developer Documentation](Development.md)
+* [Docker Development Guide](Docker%20Development.md)
 * <a href="https://github.com/RotorHazard/RotorHazard">RotorHazard on GitHub &#10132;&#xFE0E;</a>
