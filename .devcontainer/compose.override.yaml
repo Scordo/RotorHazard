@@ -1,0 +1,5 @@
+# Dev Container only: keep the container running (the server is started from VS Code or a terminal).
+# The image ENTRYPOINT (tini + entrypoint.sh) stays active; only the default command is replaced.
+services:
+  rotorhazard:
+    command: ["sleep", "infinity"]
